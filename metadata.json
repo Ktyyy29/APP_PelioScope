@@ -1,0 +1,5 @@
+{
+  "name": "PelioScope Emotion Companion",
+  "description": "PelioScope displays animated emojis representing detected emotions in real-time by synchronizing with an Azure-hosted AI service via WebSockets.",
+  "requestFramePermissions": []
+}

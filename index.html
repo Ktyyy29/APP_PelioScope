@@ -1,0 +1,69 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PelioScope</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            keyframes: {
+              fadeIn: { 'from': { opacity: 0 }, 'to': { opacity: 1 } },
+              fadeInUp: { 'from': { opacity: 0, transform: 'translateY(20px)' }, 'to': { opacity: 1, transform: 'translateY(0)' } },
+            },
+            animation: {
+              fadeIn: 'fadeIn 1.5s ease-out forwards',
+              fadeInUp: 'fadeInUp 1.2s ease-out forwards',
+            },
+          },
+        },
+      }
+    </script>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#6366f1" />
+    <style>
+      body { overscroll-behavior-y: none; }
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <script>
+      (function() {
+        try {
+          var themePreference = localStorage.getItem('theme');
+          var theme = themePreference ? JSON.parse(themePreference) : null;
+          if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)')).matches) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) { }
+      })();
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-native-svg": "https://aistudiocdn.com/react-native-svg@^15.15.0",
+    "react-native": "https://aistudiocdn.com/react-native@^0.82.1",
+    "react-native-tts": "https://aistudiocdn.com/react-native-tts@^4.1.1",
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+    "firebase/database": "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js",
+    "firebase/": "https://esm.sh/firebase@^12.8.0/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
