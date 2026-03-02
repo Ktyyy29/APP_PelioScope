@@ -171,7 +171,7 @@ const SettingsTab: React.FC = () => {
             <StatusIndicator status={connectionStatus} />
         </div>
         <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
-            Azure Web Service Link Active
+            Firebase Realtime Link Active
         </p>
          {connectionStatus === 'error' && connectionError && (
             <div className="bg-red-50 dark:bg-red-900/20 p-2 rounded">

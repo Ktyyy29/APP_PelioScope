@@ -57,7 +57,7 @@ const LiveTab: React.FC = () => {
             <span className="text-indigo-600 dark:text-indigo-400">Scope</span>
           </h1>
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
-            Firebase Realtime Link
+            Firebase Realtime Link Active
           </p>
         </div>
 
