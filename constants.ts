@@ -6,11 +6,13 @@ export const EMOTION_DETAILS: Record<Emotion, EmotionData> = {
   // FIX: Changed pulseColor from a Tailwind class to a hex color for use in inline styles.
   Happy: { emoji: '😊', color: 'text-yellow-400', pulseColor: '#fcd34d' },
   Sad: { emoji: '😢', color: 'text-blue-400', pulseColor: '#93c5fd' },
-  Angry: { emoji: '😠', color: 'text-red-500', pulseColor: '#f87171' },
-  Mad: { emoji: '😡', color: 'text-red-700', pulseColor: '#dc2626' },
+  Angry: { emoji: '😡', color: 'text-red-700', pulseColor: '#dc2626' },
   Shocked: { emoji: '😲', color: 'text-indigo-400', pulseColor: '#a5b4fc' },
   Neutral: { emoji: '😐', color: 'text-gray-400', pulseColor: '#d1d5db' },
   Disgust: { emoji: '🤢', color: 'text-lime-500', pulseColor: '#84cc16' },
+  Anxious: { emoji: '😰', color: 'text-blue-300', pulseColor: '#7dd3fc' },
+  Stressed: { emoji: '😫', color: 'text-orange-500', pulseColor: '#f97316' },
+  Embarrassed: { emoji: '😳', color: 'text-pink-400', pulseColor: '#f472b6' },
 };
 
 export const ACTIVITIES: Record<ActivityName, Activity> = {
@@ -44,4 +46,31 @@ export const SHOP_ITEMS: ShopItem[] = [
     { id: 'cake', name: 'Cake', category: 'food', price: 20, icon: '🍰' },
     { id: 'water', name: 'Water', category: 'food', price: 5, icon: '💧' }, // Using 'food' category for simplicity in Shop logic, but handled as drink in activity
     { id: 'juice', name: 'Juice', category: 'food', price: 15, icon: '🧃' },
+];
+
+export const COUNTRIES = [
+  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan",
+  "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi",
+  "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic",
+  "Denmark", "Djibouti", "Dominica", "Dominican Republic",
+  "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia",
+  "Fiji", "Finland", "France",
+  "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana",
+  "Haiti", "Honduras", "Hungary",
+  "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy",
+  "Jamaica", "Japan", "Jordan",
+  "Kazakhstan", "Kenya", "Kiribati", "Korea, North", "Korea, South", "Kosovo", "Kuwait", "Kyrgyzstan",
+  "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg",
+  "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar",
+  "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Macedonia", "Norway",
+  "Oman",
+  "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal",
+  "Qatar",
+  "Romania", "Russia", "Rwanda",
+  "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria",
+  "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu",
+  "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan",
+  "Vanuatu", "Vatican City", "Venezuela", "Vietnam",
+  "Yemen",
+  "Zambia", "Zimbabwe"
 ];

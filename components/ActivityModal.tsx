@@ -98,11 +98,21 @@ export const PeliCharacter: React.FC<PeliProps> = ({
       eyes = 'angry';
       mouth = 'frown';
       eyebrows = 'angry';
-    } else if (normEmo === 'shocked' || normEmo === 'scared' || normEmo === 'nervous' || normEmo === 'worried') {
+    } else if (normEmo === 'shocked' || normEmo === 'scared' || normEmo === 'nervous' || normEmo === 'worried' || normEmo === 'anxious') {
       color = '#a5b4fc'; 
       eyes = 'wide';
       mouth = 'wavy';
       eyebrows = 'up';
+    } else if (normEmo === 'stressed') {
+      color = '#f97316'; 
+      eyes = 'sad';
+      mouth = 'wavy';
+      eyebrows = 'angry';
+    } else if (normEmo === 'embarrassed') {
+      color = '#f472b6'; 
+      eyes = 'squint';
+      mouth = 'smile';
+      eyebrows = 'neutral';
     } else if (normEmo === 'curious') {
       color = '#d8b4fe'; 
       eyes = 'wide';
@@ -159,6 +169,20 @@ export const PeliCharacter: React.FC<PeliProps> = ({
              <circle cx="150" cy="130" r="10" />
              <circle cx="100" cy="50" r="6" />
           </g>
+        )}
+
+        {bubbles && (
+          <g fill="white" fillOpacity="0.4" stroke="white" strokeWidth="1">
+             <circle cx="50" cy="150" r="10" />
+             <circle cx="150" cy="150" r="12" />
+             <circle cx="100" cy="170" r="8" />
+             <circle cx="40" cy="100" r="6" />
+             <circle cx="160" cy="100" r="7" />
+          </g>
+        )}
+
+        {isWet && (
+           <path d="M40,160 Q100,180 160,160" stroke="#3b82f6" strokeWidth="4" fill="none" strokeLinecap="round" opacity="0.6" />
         )}
 
         <g transform="translate(0, 10)">
@@ -224,6 +248,70 @@ export const PeliCharacter: React.FC<PeliProps> = ({
             <path d="M45,80 Q45,5 100,5 Q155,5 155,80" fill="none" stroke="#374151" strokeWidth="10" strokeLinecap="round" />
             <rect x="30" y="70" width="25" height="50" rx="8" fill="#4b5563" />
             <rect x="145" y="70" width="25" height="50" rx="8" fill="#4b5563" />
+          </g>
+        )}
+
+        {/* --- EQUIPPED HATS --- */}
+        {equippedItems.hat === 'hat_cap' && (
+          <g transform="translate(100, 45)">
+            <path d="M-40,0 Q-40,-40 0,-40 Q40,-40 40,0 Z" fill="#3b82f6" />
+            <path d="M0,-5 L50,5 L50,15 L-10,10 Z" fill="#2563eb" />
+          </g>
+        )}
+        {equippedItems.hat === 'hat_bow' && (
+          <g transform="translate(140, 40) rotate(15)">
+            <path d="M-15,-10 L15,10 L15,-10 L-15,10 Z" fill="#f472b6" stroke="#db2777" strokeWidth="2" />
+            <circle cx="0" cy="0" r="5" fill="#db2777" />
+          </g>
+        )}
+        {equippedItems.hat === 'hat_crown' && (
+          <g transform="translate(100, 35)">
+            <path d="M-30,0 L-40,-30 L-20,-15 L0,-40 L20,-15 L40,-30 L30,0 Z" fill="#fbbf24" stroke="#d97706" strokeWidth="2" />
+            <circle cx="0" cy="-15" r="3" fill="#ef4444" />
+          </g>
+        )}
+        {equippedItems.hat === 'hat_cowboy' && (
+          <g transform="translate(100, 40)">
+            <ellipse cx="0" cy="0" rx="60" ry="15" fill="#92400e" />
+            <path d="M-30,0 Q-30,-35 0,-35 Q30,-35 30,0 Z" fill="#78350f" />
+          </g>
+        )}
+        {equippedItems.hat === 'hat_beanie' && (
+          <g transform="translate(100, 45)">
+            <path d="M-45,0 Q-45,-45 0,-45 Q45,-45 45,0 Z" fill="#22c55e" />
+            <circle cx="0" cy="-45" r="8" fill="#16a34a" />
+            <rect x="-45" y="-5" width="90" height="15" rx="5" fill="#16a34a" />
+          </g>
+        )}
+
+        {/* --- EQUIPPED CLOTHES/ACCESSORIES --- */}
+        {equippedItems.clothes === 'cloth_tie' && (
+          <g transform="translate(100, 135)">
+            <path d="M-15,-10 L15,10 L15,-10 L-15,10 Z" fill="#ef4444" stroke="#b91c1c" strokeWidth="2" />
+            <circle cx="0" cy="0" r="4" fill="#b91c1c" />
+          </g>
+        )}
+        {equippedItems.clothes === 'cloth_scarf' && (
+          <g transform="translate(100, 140)">
+            <path d="M-50,0 Q0,15 50,0 L50,15 Q0,30 -50,15 Z" fill="#f87171" />
+            <path d="M30,10 L45,40 L30,45 Z" fill="#ef4444" />
+          </g>
+        )}
+        {equippedItems.clothes === 'cloth_glasses' && (
+          <g transform="translate(100, 85)">
+            <circle cx="-30" cy="0" r="18" fill="rgba(0,0,0,0.5)" stroke="#1f2937" strokeWidth="3" />
+            <circle cx="30" cy="0" r="18" fill="rgba(0,0,0,0.5)" stroke="#1f2937" strokeWidth="3" />
+            <path d="M-12,0 L12,0" stroke="#1f2937" strokeWidth="3" />
+            <path d="M-48,0 L-60,-5 M48,0 L60,-5" stroke="#1f2937" strokeWidth="2" />
+          </g>
+        )}
+        {equippedItems.clothes === 'cloth_flower' && (
+          <g transform="translate(150, 120)">
+            <circle cx="0" cy="0" r="12" fill="#f472b6" />
+            <circle cx="0" cy="0" r="4" fill="#fcd34d" />
+            {[0, 72, 144, 216, 288].map(deg => (
+              <circle key={deg} cx={Math.cos(deg * Math.PI / 180) * 8} cy={Math.sin(deg * Math.PI / 180) * 8} r="4" fill="#f472b6" />
+            ))}
           </g>
         )}
       </svg>

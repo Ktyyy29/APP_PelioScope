@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { ConnectionStatus } from '../types';
+import { COUNTRIES } from '../constants';
 
 const StatusIndicator: React.FC<{ status: ConnectionStatus }> = ({ status }) => {
     const statusConfig = useMemo(() => {
@@ -52,7 +53,7 @@ const AboutModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-2">Why PelioScope?</h3>
                         <p className="flex flex-col items-center justify-center gap-1">
                             <span className="font-bold text-indigo-500">Pelio</span> 
-                            <span>Greek god of emotions(Pelios)</span>
+                            <span>Greek God of Emotions(Pelios)</span>
                         </p>
                         <p className="flex items-center justify-center gap-2 mt-2">
                             <span className="font-bold text-indigo-500">Scope</span> 
@@ -80,11 +81,14 @@ const SettingsTab: React.FC = () => {
     emotionHistory,
     activityHistory,
     connectionStatus,
-    connectionError
+    connectionError,
+    userCountry,
+    setUserCountry
   } = useAppContext();
 
   const [localCompanionName, setLocalCompanionName] = useState(companionName);
   const [localUserName, setLocalUserName] = useState(userName);
+  const [localUserCountry, setLocalUserCountry] = useState(userCountry);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [isConfirmingReset, setIsConfirmingReset] = useState(false);
@@ -99,6 +103,10 @@ const SettingsTab: React.FC = () => {
   }, [userName]);
 
   useEffect(() => {
+    setLocalUserCountry(userCountry);
+  }, [userCountry]);
+
+  useEffect(() => {
     if (toastMessage) {
       const timer = setTimeout(() => {
         setToastMessage(null);
@@ -110,6 +118,7 @@ const SettingsTab: React.FC = () => {
   const handleSaveSettings = () => {
       setCompanionName(localCompanionName);
       setUserName(localUserName);
+      setUserCountry(localUserCountry);
       setToastMessage("Settings Saved!");
   }
 
@@ -172,6 +181,19 @@ const SettingsTab: React.FC = () => {
             onChange={(e) => setLocalCompanionName(e.target.value)}
             className="mt-1 block w-full px-4 py-3 bg-white dark:bg-gray-700 text-black dark:text-white border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 sm:text-sm placeholder:text-gray-400 placeholder:italic"
           />
+        </div>
+        <div>
+          <label htmlFor="userCountry" className="block text-sm font-medium text-gray-600 dark:text-gray-300">Country</label>
+          <select
+            id="userCountry"
+            value={localUserCountry}
+            onChange={(e) => setLocalUserCountry(e.target.value)}
+            className="mt-1 block w-full px-4 py-3 bg-white dark:bg-gray-700 text-black dark:text-white border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 sm:text-sm appearance-none cursor-pointer"
+          >
+            {COUNTRIES.map(country => (
+              <option key={country} value={country}>{country}</option>
+            ))}
+          </select>
         </div>
       </div>
       

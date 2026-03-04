@@ -106,15 +106,22 @@ const LiveTab: React.FC = () => {
           
           {isSystemRunning && (
             <div className="mt-4 flex flex-col items-center gap-1">
-              <div className="px-4 py-1.5 rounded-full bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border border-white/20 dark:border-gray-700 shadow-sm">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">
-                  {currentConfidence !== null ? `Accuracy: ${(currentConfidence * 100).toFixed(0)}%` : 'Awaiting Data...'}
-                </span>
+              <div className="flex flex-col items-center gap-0.5 mb-2">
+                <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Current PHT</p>
+                <p className="text-[10px] font-black text-indigo-500">
+                  {new Date().toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour12: true })}
+                </p>
               </div>
-              
+
               {lastUpdate && (
                 <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-2">
-                  Last Update: {new Date(lastUpdate).toLocaleTimeString()}
+                  Last Update: {new Date(lastUpdate).toLocaleTimeString('en-PH', { 
+                    timeZone: 'Asia/Manila', 
+                    hour: 'numeric', 
+                    minute: '2-digit', 
+                    second: '2-digit', 
+                    hour12: true 
+                  })} (PHT)
                 </p>
               )}
 

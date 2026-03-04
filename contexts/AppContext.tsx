@@ -38,6 +38,8 @@ interface AppContextType {
   setUserName: (name: string) => void;
   userPin: string;
   setUserPin: (pin: string) => void;
+  userCountry: string;
+  setUserCountry: (country: string) => void;
 
   // Decoupled Emotion States
   currentEmotion: Emotion; // For Chat/Manual
@@ -92,12 +94,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [companionName, setCompanionName] = useLocalStorage('companionName', 'PELI');
   const [userName, setUserName] = useUserName(); 
   const [userPin, setUserPin] = useLocalStorage('userPin', '');
+  const [userCountry, setUserCountry] = useLocalStorage('userCountry', 'Philippines');
   const [activityHistory, setActivityHistory] = useLocalStorage<ActivityLog[]>('activityHistory', []);
   const [emotionHistory, setEmotionHistory] = useLocalStorage<EmotionLog[]>('emotionHistory', []);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'light');
   const [lastShowerTime, setLastShowerTime] = useLocalStorage<number>('lastShowerTime', 0);
   const [lastFedTime, setLastFedTime] = useLocalStorage<number>('lastFedTime', 0);
-  const [drachma, setDrachma] = useLocalStorage<number>('drachma', 100);
+  const [drachma, setDrachma] = useLocalStorage<number>('drachma', 250);
   const [inventory, setInventory] = useLocalStorage<string[]>('inventory', []);
   const [equippedItems, setEquippedItems] = useLocalStorage<EquippedItems>('equippedItems', {
     hat: null,
@@ -152,7 +155,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (rawLabel) {
           const normalized = String(rawLabel).toLowerCase();
           const synonymMap: Record<string, Emotion> = {
-            happy: 'Happy', sad: 'Sad', angry: 'Angry', mad: 'Mad', 
+            happy: 'Happy', sad: 'Sad', angry: 'Angry', mad: 'Angry', 
             shocked: 'Shocked', fear: 'Shocked', disgust: 'Disgust', neutral: 'Neutral'
           };
           const matchedEmotion = synonymMap[normalized] || SUPPORTED_EMOTIONS.find(e => e.toLowerCase() === normalized);
@@ -268,6 +271,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const value: AppContextType = {
     companionName, setCompanionName, userName, setUserName, userPin, setUserPin,
+    userCountry, setUserCountry,
     currentEmotion, setCurrentEmotion, azureEmotion, setAzureEmotion,
     currentConfidence, setCurrentConfidence,
     lastUpdate, emotionHistory, setEmotionHistory, activityHistory,

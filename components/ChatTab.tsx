@@ -7,7 +7,7 @@ import { EMOTION_DETAILS } from '../constants';
 import { GoogleGenAI } from "@google/genai";
 
 const ChatTab: React.FC = () => {
-  const { companionName, currentEmotion, setCurrentEmotion, userName } = useAppContext();
+  const { companionName, currentEmotion, setCurrentEmotion, userName, userCountry } = useAppContext();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [userInput, setUserInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -36,6 +36,9 @@ const ChatTab: React.FC = () => {
           config: {
             systemInstruction: `You are ${companionName || 'Peli'}, a friendly emotion companion. 
             The user (${userName}) is feeling: ${currentEmotion}. 
+            The user is located in ${userCountry || 'the Philippines'}. 
+            IMPORTANT: Only provide emergency contacts or crisis information if the user expresses severe distress, danger, or explicitly asks for help. Otherwise, focus on being a supportive companion.
+            When providing local info or cultural context, ensure it is specific to ${userCountry || 'the Philippines'}.
             Keep responses concise, empathetic, and always acknowledge the user's current emotion.`,
           },
         });

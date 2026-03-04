@@ -1,9 +1,9 @@
 
 import React from 'react';
 
-export type Emotion = 'Happy' | 'Sad' | 'Angry' | 'Mad' | 'Shocked' | 'Neutral' | 'Disgust';
+export type Emotion = 'Happy' | 'Sad' | 'Angry' | 'Shocked' | 'Neutral' | 'Disgust' | 'Anxious' | 'Stressed' | 'Embarrassed';
 
-export const SUPPORTED_EMOTIONS: Emotion[] = ['Happy', 'Sad', 'Angry', 'Mad', 'Shocked', 'Neutral', 'Disgust'];
+export const SUPPORTED_EMOTIONS: Emotion[] = ['Happy', 'Sad', 'Angry', 'Shocked', 'Neutral', 'Disgust', 'Anxious', 'Stressed', 'Embarrassed'];
 
 export interface EmotionData {
   emoji: string;
