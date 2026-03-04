@@ -52,7 +52,7 @@ const AboutModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <h3 className="font-bold text-gray-800 dark:text-gray-100 mb-2">Why PelioScope?</h3>
                         <p className="flex flex-col items-center justify-center gap-1">
                             <span className="font-bold text-indigo-500">Pelio</span> 
-                            <span>Greek god of emotions</span>
+                            <span>Greek god of emotions(Pelios)</span>
                         </p>
                         <p className="flex items-center justify-center gap-2 mt-2">
                             <span className="font-bold text-indigo-500">Scope</span> 
@@ -87,6 +87,7 @@ const SettingsTab: React.FC = () => {
   const [localUserName, setLocalUserName] = useState(userName);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
 
   useEffect(() => {
@@ -120,6 +121,16 @@ const SettingsTab: React.FC = () => {
     } else {
         setIsConfirmingClear(true);
         setTimeout(() => setIsConfirmingClear(false), 3000);
+    }
+  };
+
+  const handleResetAllData = () => {
+    if (isConfirmingReset) {
+        localStorage.clear();
+        window.location.reload();
+    } else {
+        setIsConfirmingReset(true);
+        setTimeout(() => setIsConfirmingReset(false), 3000);
     }
   };
   
@@ -186,16 +197,30 @@ const SettingsTab: React.FC = () => {
       
       <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-md space-y-4">
         <h2 className="font-bold text-lg text-gray-700 dark:text-gray-300">Data Management</h2>
-        <button
-          onClick={handleClearData}
-          className={`w-full font-bold py-3 px-4 rounded-xl transition-colors duration-200 ${
-            isConfirmingClear 
-              ? 'bg-red-700 text-white' 
-              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-          }`}
-        >
-          {isConfirmingClear ? 'Confirm Clear?' : 'Clear History'}
-        </button>
+        <div className="space-y-3">
+            <button
+              onClick={handleClearData}
+              className={`w-full font-bold py-3 px-4 rounded-xl transition-colors duration-200 ${
+                isConfirmingClear 
+                  ? 'bg-red-700 text-white' 
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+              }`}
+            >
+              {isConfirmingClear ? 'Confirm Clear History?' : 'Clear History'}
+            </button>
+            
+            <button
+              onClick={handleResetAllData}
+              className={`w-full font-bold py-3 px-4 rounded-xl transition-colors duration-200 border-2 ${
+                isConfirmingReset 
+                  ? 'bg-red-600 border-red-600 text-white' 
+                  : 'bg-white dark:bg-gray-800 border-red-500 text-red-500'
+              }`}
+            >
+              {isConfirmingReset ? 'CONFIRM FULL RESET?' : 'Reset All Data'}
+            </button>
+            <p className="text-[10px] text-gray-400 text-center italic">Resetting will clear Drachma, Inventory, and all progress.</p>
+        </div>
       </div>
 
       <button 
@@ -206,7 +231,7 @@ const SettingsTab: React.FC = () => {
             <span className="text-2xl">🌟</span>
             <div className="text-left">
                 <h2 className="font-bold text-gray-800 dark:text-gray-100">About PelioScope</h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">v2.5.0 (WebSocket)</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">v2.0.9</p>
             </div>
         </div>
         <span className="text-gray-400">➔</span>

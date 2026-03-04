@@ -21,9 +21,11 @@ const ActivityCard: React.FC<ActivityCardProps> = ({ activity, onClick }) => {
       <Icon className="w-10 h-10 drop-shadow-md" />
       <div className="text-left w-full z-10">
           <span className="font-bold text-lg block">{activity.name}</span>
-          <span className="text-xs bg-black/20 px-2 py-1 rounded-full mt-1 inline-flex items-center gap-1">
-             +{activity.reward} <DrachmaIcon className="w-3 h-3" />
-          </span>
+          {activity.reward > 0 && (
+            <span className="text-xs bg-black/20 px-2 py-1 rounded-full mt-1 inline-flex items-center gap-1">
+               +{activity.reward} <DrachmaIcon className="w-3 h-3" />
+            </span>
+          )}
       </div>
       <div className="absolute -bottom-4 -right-4 opacity-20">
          <Icon className="w-24 h-24" />

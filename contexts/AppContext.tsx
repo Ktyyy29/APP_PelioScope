@@ -97,7 +97,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'light');
   const [lastShowerTime, setLastShowerTime] = useLocalStorage<number>('lastShowerTime', 0);
   const [lastFedTime, setLastFedTime] = useLocalStorage<number>('lastFedTime', 0);
-  const [drachma, setDrachma] = useLocalStorage<number>('drachma', 1000);
+  const [drachma, setDrachma] = useLocalStorage<number>('drachma', 100);
   const [inventory, setInventory] = useLocalStorage<string[]>('inventory', []);
   const [equippedItems, setEquippedItems] = useLocalStorage<EquippedItems>('equippedItems', {
     hat: null,
@@ -153,7 +153,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const normalized = String(rawLabel).toLowerCase();
           const synonymMap: Record<string, Emotion> = {
             happy: 'Happy', sad: 'Sad', angry: 'Angry', mad: 'Mad', 
-            fear: 'Fear', surprised: 'Surprised', disgust: 'Disgust', neutral: 'Neutral'
+            shocked: 'Shocked', fear: 'Shocked', disgust: 'Disgust', neutral: 'Neutral'
           };
           const matchedEmotion = synonymMap[normalized] || SUPPORTED_EMOTIONS.find(e => e.toLowerCase() === normalized);
           

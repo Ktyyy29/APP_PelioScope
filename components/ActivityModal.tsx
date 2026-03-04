@@ -98,12 +98,12 @@ export const PeliCharacter: React.FC<PeliProps> = ({
       eyes = 'angry';
       mouth = 'frown';
       eyebrows = 'angry';
-    } else if (normEmo === 'fear' || normEmo === 'scared' || normEmo === 'nervous' || normEmo === 'worried') {
+    } else if (normEmo === 'shocked' || normEmo === 'scared' || normEmo === 'nervous' || normEmo === 'worried') {
       color = '#a5b4fc'; 
       eyes = 'wide';
       mouth = 'wavy';
       eyebrows = 'up';
-    } else if (normEmo === 'surprised' || normEmo === 'curious') {
+    } else if (normEmo === 'curious') {
       color = '#d8b4fe'; 
       eyes = 'wide';
       mouth = 'o-shape';
@@ -309,10 +309,10 @@ const GiveGift: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   const [animation, setAnimation] = useState('');
   const [particles, setParticles] = useState<string | null>(null);
 
-  const emotionsToSelect: Emotion[] = ['Happy', 'Sad', 'Angry', 'Fear', 'Surprised', 'Neutral'];
+  const emotionsToSelect: Emotion[] = ['Happy', 'Sad', 'Angry', 'Shocked', 'Neutral'];
   const handleSelectEmotion = (emotion: string) => {
     setDisplayEmotion(emotion); setStep('interaction');
-    if (emotion === 'Happy') setAnimation('animate-bounce'); else if (emotion === 'Fear') setAnimation('animate-shake'); else if (emotion === 'Angry') setAnimation('animate-pulse'); else setAnimation('animate-pulse-slow');
+    if (emotion === 'Happy') setAnimation('animate-bounce'); else if (emotion === 'Shocked') setAnimation('animate-shake'); else if (emotion === 'Angry') setAnimation('animate-pulse'); else setAnimation('animate-pulse-slow');
     setFeedbackText(`PELI is feeling ${emotion}.`);
   };
 
@@ -359,6 +359,7 @@ const BathTime: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const [phase, setPhase] = useState<'lather'|'rinse'|'dry'>('lather');
     const [progress, setProgress] = useState(0); 
     const [peliState, setPeliState] = useState<{dirty: boolean, bubbles: boolean, wet: boolean}>({ dirty: true, bubbles: false, wet: false });
+    const rinseIntervalRef = useRef<any>(null);
 
     const handleLatherMove = () => {
         if(phase !== 'lather') return;
@@ -368,16 +369,27 @@ const BathTime: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
     const handleRinseStart = () => {
         if(phase !== 'rinse') return;
-        const interval = setInterval(() => {
+        if (rinseIntervalRef.current) return;
+        rinseIntervalRef.current = setInterval(() => {
             setProgress(p => {
                 const next = Math.min(p + 5, 100);
                 if(next > 20) setPeliState({ dirty: false, bubbles: false, wet: true }); 
                 return next;
             });
         }, 100);
-        (window as any).rinseInterval = interval;
     };
-    const handleRinseEnd = () => clearInterval((window as any).rinseInterval);
+    const handleRinseEnd = () => {
+        if (rinseIntervalRef.current) {
+            clearInterval(rinseIntervalRef.current);
+            rinseIntervalRef.current = null;
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            if (rinseIntervalRef.current) clearInterval(rinseIntervalRef.current);
+        };
+    }, []);
 
     const handleDryMove = () => {
         if(phase !== 'dry') return;
@@ -647,15 +659,19 @@ const FindFaceGame: React.FC<GameProps> = ({ onComplete, setPeliReaction, setFee
     const [grid, setGrid] = useState<Emotion[]>([]);
     useEffect(() => {
         const count = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 5 : 8;
-        const distractors: Emotion[] = ['Sad', 'Angry', 'Fear', 'Surprised', 'Disgust', 'Neutral'];
+        const distractors: Emotion[] = ['Sad', 'Angry', 'Shocked', 'Disgust', 'Neutral'];
         const newGrid: Emotion[] = [];
         for(let i=0; i<count-1; i++) newGrid.push(distractors[Math.floor(Math.random() * distractors.length)]);
         const insertIdx = Math.floor(Math.random() * count);
         newGrid.splice(insertIdx, 0, 'Happy');
         setGrid(newGrid);
-        setPeliReaction('Neutral');
-        setFeedback("Tap the Happy face!");
-    }, [difficulty, setPeliReaction, setFeedback]);
+        
+        const timer = setTimeout(() => {
+            setPeliReaction('Neutral');
+            setFeedback("Tap the Happy face!");
+        }, 0);
+        return () => clearTimeout(timer);
+    }, [difficulty]); // Only re-run when difficulty changes
     const handleTap = (emo: Emotion) => {
         if (emo === 'Happy') {
             setPeliReaction('Excited');
@@ -679,15 +695,19 @@ const NameEmotionGame: React.FC<GameProps> = ({ onComplete, setPeliReaction, set
     const [targetEmotion, setTargetEmotion] = useState<Emotion>('Happy');
     const [options, setOptions] = useState<string[]>([]);
     useEffect(() => {
-        const supported: Emotion[] = ['Happy', 'Sad', 'Angry', 'Fear', 'Surprised', 'Neutral', 'Disgust'];
+        const supported: Emotion[] = ['Happy', 'Sad', 'Angry', 'Shocked', 'Neutral', 'Disgust'];
         const target = supported[Math.floor(Math.random() * supported.length)];
         setTargetEmotion(target);
         const wrong = supported.filter(e => e !== target).sort(() => 0.5 - Math.random()).slice(0, 3);
         const choices = [...wrong, target].sort(() => 0.5 - Math.random());
         setOptions(choices);
-        setPeliReaction(target);
-        setFeedback("What is Peli feeling?");
-    }, [setPeliReaction, setFeedback]);
+        
+        const timer = setTimeout(() => {
+            setPeliReaction(target);
+            setFeedback("What is Peli feeling?");
+        }, 0);
+        return () => clearTimeout(timer);
+    }, []); // Only run once on mount
     const handleGuess = (guess: string) => {
         if (guess === targetEmotion) { setPeliReaction('Love'); setFeedback("Correct!"); setTimeout(onComplete, 1500); }
         else { setFeedback("Let’s check the eyes and mouth—try again!"); }
@@ -706,36 +726,50 @@ const MemoryMatchGame: React.FC<GameProps> = ({ onComplete, setPeliReaction, set
     const [cards, setCards] = useState<{id: number, emotion: Emotion, isFlipped: boolean, isMatched: boolean}[]>([]);
     const [flippedIds, setFlippedIds] = useState<number[]>([]);
     useEffect(() => {
-        const emotions: Emotion[] = ['Happy', 'Sad', 'Angry', 'Surprised', 'Fear', 'Neutral'];
+        const emotions: Emotion[] = ['Happy', 'Sad', 'Angry', 'Shocked', 'Neutral'];
         const deck = [...emotions, ...emotions].sort(() => 0.5 - Math.random()).map((emo, idx) => ({ id: idx, emotion: emo, isFlipped: false, isMatched: false }));
-        setCards(deck); setPeliReaction('Neutral'); setFeedback("Find the pairs!");
-    }, [setPeliReaction, setFeedback]);
+        setCards(deck);
+        
+        const timer = setTimeout(() => {
+            setPeliReaction('Neutral');
+            setFeedback("Find the pairs!");
+        }, 0);
+        return () => clearTimeout(timer);
+    }, []); // Only run once on mount
     const handleCardClick = (id: number) => {
         if (flippedIds.length >= 2) return;
         const clickedCard = cards.find(c => c.id === id);
         if (!clickedCard || clickedCard.isMatched || clickedCard.isFlipped) return;
-        const newCards = cards.map(c => c.id === id ? { ...c, isFlipped: true } : c);
-        setCards(newCards);
+        
+        const flippedCards = cards.map(c => c.id === id ? { ...c, isFlipped: true } : c);
+        setCards(flippedCards);
+        
         const newFlipped = [...flippedIds, id];
         setFlippedIds(newFlipped);
+        
         if (newFlipped.length === 2) {
-            const card1 = newCards.find(c => c.id === newFlipped[0]);
-            const card2 = newCards.find(c => c.id === newFlipped[1]);
+            const card1 = flippedCards.find(c => c.id === newFlipped[0]);
+            const card2 = flippedCards.find(c => c.id === newFlipped[1]);
             if (card1 && card2) {
                 if (card1.emotion === card2.emotion) {
                     setTimeout(() => {
-                        setCards(prev => {
-                            const updated = prev.map(c => (c.id === card1.id || c.id === card2.id) ? { ...c, isMatched: true, isFlipped: true } : c);
-                            if (updated.every(c => c.isMatched)) { setPeliReaction('Excited'); setFeedback("Amazing memory!"); setTimeout(onComplete, 1500); }
-                            else { setPeliReaction('Happy'); }
-                            return updated;
-                        });
+                        const matchedCards = flippedCards.map(c => (c.id === card1.id || c.id === card2.id) ? { ...c, isMatched: true, isFlipped: true } : c);
+                        setCards(matchedCards);
                         setFlippedIds([]);
+                        
+                        if (matchedCards.every(c => c.isMatched)) { 
+                            setPeliReaction('Excited'); 
+                            setFeedback("Amazing memory!"); 
+                            setTimeout(onComplete, 1500); 
+                        } else { 
+                            setPeliReaction('Happy'); 
+                        }
                     }, 500);
                 } else {
                     setTimeout(() => {
                         setCards(prev => prev.map(c => (c.id === card1.id || c.id === card2.id) ? { ...c, isFlipped: false } : c));
-                        setFlippedIds([]); setPeliReaction('Sad');
+                        setFlippedIds([]); 
+                        setPeliReaction('Sad');
                     }, 1000);
                 }
             }
@@ -867,6 +901,7 @@ const StoryMode: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     });
 
     useEffect(() => { localStorage.setItem('story_quota', JSON.stringify(quotaData)); }, [quotaData]);
+    
     const audioContextRef = useRef<AudioContext | null>(null);
     const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
     const isCancelledRef = useRef(false);
@@ -881,6 +916,16 @@ const StoryMode: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
         if (sourceNodeRef.current) { try { sourceNodeRef.current.stop(); } catch(e) {} sourceNodeRef.current = null; }
         setIsPlaying(false); setIsNarrating(false);
     }, []);
+
+    useEffect(() => {
+        return () => {
+            stopPlayback();
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+            }
+        };
+    }, [stopPlayback]);
 
     const speakSceneGemini = async (index: number) => {
         if (selectedStoryIndex === null || isCancelledRef.current) return;
@@ -1058,6 +1103,7 @@ const FeedingTime: React.FC<{ onComplete: () => void; onOpenShop?: () => void }>
     const { setLastFedTime, inventory, consumeItem, hungerLevel } = useAppContext();
     const [mode, setMode] = useState<'menu'|'pouring'|'eating'>('menu');
     const [pourLevel, setPourLevel] = useState(0); 
+    const pourIntervalRef = useRef<any>(null);
 
     const ownedFoods = SHOP_ITEMS.filter(item =>
         item.category === 'food' && inventory.includes(item.id)
@@ -1066,8 +1112,23 @@ const FeedingTime: React.FC<{ onComplete: () => void; onOpenShop?: () => void }>
         quantity: inventory.filter(id => id === item.id).length
     })).filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i);
 
-    const startPour = () => { (window as any).pourInterval = setInterval(() => { setPourLevel(p => Math.min(p + 2, 100)); }, 50); };
-    const stopPour = () => { clearInterval((window as any).pourInterval); if(pourLevel >= 60 && pourLevel <= 80) setMode('eating'); else setPourLevel(0); };
+    const startPour = () => { 
+        if (pourIntervalRef.current) return;
+        pourIntervalRef.current = setInterval(() => { setPourLevel(p => Math.min(p + 2, 100)); }, 50); 
+    };
+    const stopPour = () => { 
+        if (pourIntervalRef.current) {
+            clearInterval(pourIntervalRef.current);
+            pourIntervalRef.current = null;
+        }
+        if(pourLevel >= 60 && pourLevel <= 80) setMode('eating'); else setPourLevel(0); 
+    };
+
+    useEffect(() => {
+        return () => {
+            if (pourIntervalRef.current) clearInterval(pourIntervalRef.current);
+        };
+    }, []);
 
     useEffect(() => { if(mode === 'eating') { setLastFedTime(Date.now()); setTimeout(() => onComplete(), 2500); } }, [mode, onComplete, setLastFedTime]);
 
@@ -1169,10 +1230,27 @@ interface ActivityModalProps {
 const ActivityModal: React.FC<ActivityModalProps> = ({ activity, onClose, onOpenShop }) => {
   const { addActivityLog, earnDrachma } = useAppContext();
   const [isComplete, setIsComplete] = useState(false);
-  const handleComplete = () => { if (!isComplete) { setIsComplete(true); addActivityLog(activity.name); earnDrachma(activity.reward); setTimeout(onClose, 2500); } };
+  const handleComplete = useCallback(() => { 
+    if (!isComplete) { 
+      setIsComplete(true); 
+      addActivityLog(activity.name); 
+      earnDrachma(activity.reward); 
+      setTimeout(onClose, 2500); 
+    } 
+  }, [isComplete, activity.name, activity.reward, addActivityLog, earnDrachma, onClose]);
   
   const renderContent = () => {
-    if (isComplete) return <div className="flex flex-col items-center justify-center flex-grow text-white"><span className="text-9xl mb-8 animate-bounce">🌟</span><p className="text-4xl font-black italic tracking-tighter uppercase">GREAT JOB!</p><p className="text-2xl font-bold text-yellow-300 mt-4 flex items-center gap-2">+{activity.reward} <DrachmaIcon className="w-6 h-6" /></p></div>;
+    if (isComplete) return (
+      <div className="flex flex-col items-center justify-center flex-grow text-white">
+        <span className="text-9xl mb-8 animate-bounce">🌟</span>
+        <p className="text-4xl font-black italic tracking-tighter uppercase">GREAT JOB!</p>
+        {activity.reward > 0 && (
+          <p className="text-2xl font-bold text-yellow-300 mt-4 flex items-center gap-2">
+            +{activity.reward} <DrachmaIcon className="w-6 h-6" />
+          </p>
+        )}
+      </div>
+    );
     
     switch (activity.name) {
       case 'Mood Boost': return <MoodBoost onComplete={handleComplete} />;

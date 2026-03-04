@@ -21,6 +21,7 @@ const StatsTab: React.FC = () => {
   const totalActivities = activityHistory.length;
   
   const sortedEmotions = Object.entries(emotionCounts)
+    .filter(([emotion]) => EMOTION_DETAILS[emotion as Emotion])
     .sort(([, a], [, b]) => b - a) as [Emotion, number][];
 
   const sortedActivities = Object.entries(activityCounts)

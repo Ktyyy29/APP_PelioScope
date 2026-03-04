@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { useAppContext } from '../contexts/AppContext';
 import { EMOTION_DETAILS } from '../constants';
+import { Emotion } from '../types';
 
 const LiveTab: React.FC = () => {
   const { 
@@ -25,7 +26,7 @@ const LiveTab: React.FC = () => {
 
   const getEmotionDetails = () => {
     if (!isSystemRunning) return idleDetails;
-    return EMOTION_DETAILS[azureEmotion] || idleDetails;
+    return EMOTION_DETAILS[azureEmotion as Emotion] || idleDetails;
   };
 
   const emotionDetails = getEmotionDetails();
@@ -90,16 +91,16 @@ const LiveTab: React.FC = () => {
           }`}
           style={{
             filter:
-              isSystemRunning && emotionDetails.pulseColor
+              isSystemRunning && emotionDetails?.pulseColor
                 ? `drop-shadow(0 0 45px ${emotionDetails.pulseColor})`
                 : 'none'
           }}
         >
-          {emotionDetails.emoji}
+          {emotionDetails?.emoji}
         </div>
 
         <div className="mt-4">
-          <h2 className={`text-5xl font-black uppercase italic tracking-tighter transition-all duration-500 ${emotionDetails.color}`}>
+          <h2 className={`text-5xl font-black uppercase italic tracking-tighter transition-all duration-500 ${emotionDetails?.color || 'text-gray-400'}`}>
             {isSystemRunning ? azureEmotion : 'Paused'}
           </h2>
           
