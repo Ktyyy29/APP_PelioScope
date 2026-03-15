@@ -110,6 +110,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Decoupled states
   const [currentEmotion, setCurrentEmotion] = useState<Emotion>('Happy'); 
   const [azureEmotion, setAzureEmotion] = useState<Emotion>('Neutral');  
+  const lastEmotionRef = useRef<Emotion | null>(null);
   
   const [currentConfidence, setCurrentConfidence] = useState<number | null>(null);
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
@@ -117,6 +118,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  // Reset lastEmotionRef when system stops so the next start gets a fresh timestamp
+  useEffect(() => {
+    if (!isSystemRunning) {
+      lastEmotionRef.current = null;
+    }
+  }, [isSystemRunning]);
 
   const isPeliDirty = useMemo(() => Date.now() - lastShowerTime > 3 * 60 * 60 * 1000, [lastShowerTime]);
   const isPeliHungry = useMemo(() => Date.now() - lastFedTime > 30 * 60 * 1000, [lastFedTime]);
@@ -132,6 +140,39 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [theme]);
 
   const toggleTheme = useCallback(() => setTheme(t => (t === 'light' ? 'dark' : 'light')), [setTheme]);
+
+  // Simulation Logic for Demo Mode
+  useEffect(() => {
+    if (!isDemoMode || !isSystemRunning) return;
+
+    const interval = setInterval(() => {
+      const emotions: Emotion[] = ['Happy', 'Sad', 'Angry', 'Shocked', 'Neutral', 'Disgust'];
+      const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
+      
+      // Stay on the same emotion for a LONG time to test the "1 min ago" logic
+      // 95% chance to stay on the same emotion
+      if (lastEmotionRef.current && Math.random() < 0.95) {
+        return;
+      }
+
+      if (randomEmotion !== lastEmotionRef.current) {
+        setAzureEmotion(randomEmotion);
+        setLastUpdate(Date.now());
+        lastEmotionRef.current = randomEmotion;
+        
+        setEmotionHistory(prev => {
+          if (prev.length === 0 || prev[0].emotion !== randomEmotion) {
+            return [{ id: Date.now().toString(), emotion: randomEmotion, detectedAt: Date.now() }, ...prev].slice(0, 100);
+          }
+          return prev;
+        });
+      }
+      
+      setCurrentConfidence(0.7 + Math.random() * 0.25);
+    }, 20000); // Check every 20 seconds
+
+    return () => clearInterval(interval);
+  }, [isDemoMode, isSystemRunning, setEmotionHistory]);
 
   // Firebase Realtime Database Listener - NEW PATH: live_monitoring/current
   useEffect(() => {
@@ -161,9 +202,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const matchedEmotion = synonymMap[normalized] || SUPPORTED_EMOTIONS.find(e => e.toLowerCase() === normalized);
           
           if (matchedEmotion) {
-            setAzureEmotion(matchedEmotion);
+            // Only update lastUpdate if the emotion has actually changed
+            if (matchedEmotion !== lastEmotionRef.current) {
+              setAzureEmotion(matchedEmotion);
+              
+              // Force numeric conversion and validate timestamp sanity (must be after year 2001)
+              const rawTs = data.last_updated || data.timestamp || Date.now();
+              const numericTs = Number(rawTs);
+              const validTs = (numericTs > 1000000000) ? numericTs : Date.now();
+              
+              setLastUpdate(validTs);
+              lastEmotionRef.current = matchedEmotion;
+            }
+            
             setCurrentConfidence(data.confidence ?? null);
-            setLastUpdate(data.last_updated ?? data.timestamp ?? Date.now());
             
             setEmotionHistory(prev => {
               if (prev.length === 0 || prev[0].emotion !== matchedEmotion) {
@@ -201,10 +253,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleSystemState = useCallback(async (state: 'start' | 'stop') => {
     if (isDemoMode) {
       setIsSystemRunning(state === 'start');
+      if (state === 'start') {
+        setLastUpdate(Date.now());
+        lastEmotionRef.current = null; // Reset to allow first detection to set its own time if needed
+      }
       return;
     }
     try {
       const systemRef = ref(db, 'live_monitoring/current');
+      if (state === 'start') {
+        setLastUpdate(Date.now());
+        lastEmotionRef.current = null;
+      }
       await update(systemRef, { 
         systemStatus: state === 'start' ? 'active' : 'idle',
         last_request: Date.now()

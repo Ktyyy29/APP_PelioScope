@@ -8,10 +8,14 @@ import { GoogleGenAI } from "@google/genai";
 
 const ChatTab: React.FC = () => {
   const { companionName, currentEmotion, setCurrentEmotion, userName, userCountry } = useAppContext();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const saved = localStorage.getItem('chat_history');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [userInput, setUserInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatSessionRef = useRef<any>(null);
   const prevEmotionRef = useRef<Emotion>(currentEmotion);
@@ -21,6 +25,20 @@ const ChatTab: React.FC = () => {
   };
 
   useEffect(scrollToBottom, [messages, isTyping]);
+
+  useEffect(() => {
+    localStorage.setItem('chat_history', JSON.stringify(messages));
+  }, [messages]);
+
+  const clearHistory = () => {
+    setMessages([{
+      id: 'welcome-' + Date.now(),
+      text: `Hi ${userName || 'Friend'}! I sense you're feeling ${currentEmotion.toLowerCase()} right now. How can I help you?`,
+      sender: 'companion',
+      timestamp: Date.now(),
+    }]);
+    setShowConfirmClear(false);
+  };
 
   useEffect(() => {
     const initChat = async () => {
@@ -136,27 +154,53 @@ const ChatTab: React.FC = () => {
                 PELIO<span className="text-indigo-600">CHAT</span>
               </h1>
               <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
-                Manual Mood Override
+                Emotion Companion
               </p>
           </div>
           
-          <div className="relative group">
-             <select 
-               value={currentEmotion}
-               onChange={(e) => setCurrentEmotion(e.target.value as Emotion)}
-               className="bg-white dark:bg-gray-800 border-2 border-indigo-200 dark:border-indigo-800 rounded-2xl px-4 py-2 text-sm font-black text-indigo-950 dark:text-indigo-50 shadow-md outline-none appearance-none cursor-pointer pr-10 transition-all hover:border-indigo-400"
-             >
-                {SUPPORTED_EMOTIONS.map(emo => (
-                  <option key={emo} value={emo} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-bold">
-                    {EMOTION_DETAILS[emo].emoji} {emo}
-                  </option>
-                ))}
-             </select>
-             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-indigo-500 group-hover:scale-110 transition-transform">
-               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
-               </svg>
-             </div>
+          <div className="flex items-center gap-3">
+             {showConfirmClear ? (
+               <div className="flex items-center gap-2 animate-fadeIn">
+                 <button 
+                   onClick={clearHistory}
+                   className="text-[10px] font-black uppercase text-rose-600 hover:text-rose-700 transition-colors"
+                 >
+                   Confirm
+                 </button>
+                 <button 
+                   onClick={() => setShowConfirmClear(false)}
+                   className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-500 transition-colors"
+                 >
+                   Cancel
+                 </button>
+               </div>
+             ) : (
+               <button 
+                 onClick={() => setShowConfirmClear(true)}
+                 className="text-[10px] font-black uppercase text-slate-400 hover:text-indigo-600 transition-colors"
+               >
+                 Clear History
+               </button>
+             )}
+
+             <div className="relative group">
+               <select 
+                 value={currentEmotion}
+                 onChange={(e) => setCurrentEmotion(e.target.value as Emotion)}
+                 className="bg-white dark:bg-gray-800 border-2 border-indigo-200 dark:border-indigo-800 rounded-2xl px-4 py-2 text-sm font-black text-indigo-950 dark:text-indigo-50 shadow-md outline-none appearance-none cursor-pointer pr-10 transition-all hover:border-indigo-400"
+               >
+                  {SUPPORTED_EMOTIONS.map(emo => (
+                    <option key={emo} value={emo} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-bold">
+                      {EMOTION_DETAILS[emo].emoji} {emo}
+                    </option>
+                  ))}
+               </select>
+               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-indigo-500 group-hover:scale-110 transition-transform">
+                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                 </svg>
+               </div>
+            </div>
           </div>
       </div>
 

@@ -6,13 +6,13 @@ import { Emotion } from '../types';
 
 const LiveTab: React.FC = () => {
   const { 
-    azureEmotion, // This is now fed strictly by Firebase via AppContext
+    azureEmotion, 
     isSystemRunning,
     toggleSystemState,
     currentConfidence,
     connectionStatus,
     connectionError,
-    lastUpdate
+    emotionHistory
   } = useAppContext();
 
   // -------------------------------
@@ -27,6 +27,22 @@ const LiveTab: React.FC = () => {
   const getEmotionDetails = () => {
     if (!isSystemRunning) return idleDetails;
     return EMOTION_DETAILS[azureEmotion as Emotion] || idleDetails;
+  };
+
+  const getRelativeTime = (timestamp: number) => {
+    const now = Date.now();
+    const diffInSeconds = Math.floor((now - timestamp) / 1000);
+
+    if (diffInSeconds < 60) return 'just now';
+    if (diffInSeconds < 3600) {
+      const mins = Math.floor(diffInSeconds / 60);
+      return `${mins} ${mins === 1 ? 'min' : 'mins'} ago`;
+    }
+    if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600);
+      return `${hours} ${hours === 1 ? 'hr' : 'hrs'} ago`;
+    }
+    return `${Math.floor(diffInSeconds / 86400)}d ago`;
   };
 
   const emotionDetails = getEmotionDetails();
@@ -58,7 +74,7 @@ const LiveTab: React.FC = () => {
             <span className="text-indigo-600 dark:text-indigo-400">Scope</span>
           </h1>
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
-            Firebase Realtime Link Active
+            Realtime Link Active
           </p>
         </div>
 
@@ -101,29 +117,35 @@ const LiveTab: React.FC = () => {
 
         <div className="mt-4">
           <h2 className={`text-5xl font-black uppercase italic tracking-tighter transition-all duration-500 ${emotionDetails?.color || 'text-gray-400'}`}>
-            {isSystemRunning ? azureEmotion : 'Paused'}
+            {isSystemRunning ? azureEmotion : 'Idle'}
           </h2>
           
           {isSystemRunning && (
             <div className="mt-4 flex flex-col items-center gap-1">
-              <div className="flex flex-col items-center gap-0.5 mb-2">
-                <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest">Current PHT</p>
-                <p className="text-[10px] font-black text-indigo-500">
-                  {new Date().toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour12: true })}
-                </p>
+              {/* Recent History Feed */}
+              <div className="mt-6 w-full max-w-[240px] space-y-3 pt-4 border-t border-slate-100 dark:border-gray-800">
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Recent Changes</p>
+                {emotionHistory.slice(0, 1).map((log, index) => (
+                  <div 
+                    key={log.id} 
+                    className={`flex items-center justify-between transition-all duration-500 ${
+                      index === 0 ? 'opacity-100 scale-105' : 'opacity-40 scale-95'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{EMOTION_DETAILS[log.emotion as Emotion]?.emoji}</span>
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${
+                        index === 0 ? (EMOTION_DETAILS[log.emotion as Emotion]?.color || 'text-indigo-500') : 'text-slate-500'
+                      }`}>
+                        {log.emotion}
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-bold text-slate-400 lowercase">
+                      {getRelativeTime(log.detectedAt)}
+                    </span>
+                  </div>
+                ))}
               </div>
-
-              {lastUpdate && (
-                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mt-2">
-                  Last Update: {new Date(lastUpdate).toLocaleTimeString('en-PH', { 
-                    timeZone: 'Asia/Manila', 
-                    hour: 'numeric', 
-                    minute: '2-digit', 
-                    second: '2-digit', 
-                    hour12: true 
-                  })} (PHT)
-                </p>
-              )}
 
               {connectionStatus === 'error' && (
                 <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mt-2 px-4 text-center">
