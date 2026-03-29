@@ -99,7 +99,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [emotionHistory, setEmotionHistory] = useLocalStorage<EmotionLog[]>('emotionHistory', []);
   const [theme, setTheme] = useLocalStorage<Theme>('theme', 'light');
   const [lastShowerTime, setLastShowerTime] = useLocalStorage<number>('lastShowerTime', 0);
-  const [lastFedTime, setLastFedTime] = useLocalStorage<number>('lastFedTime', 0);
+  const [lastFedTime, setLastFedTime] = useLocalStorage<number>('lastFedTime', Date.now());
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Update current time every 10 seconds to make hunger/dirtiness feel "live"
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 10000);
+    return () => clearInterval(interval);
+  }, []);
   const [drachma, setDrachma] = useLocalStorage<number>('drachma', 250);
   const [inventory, setInventory] = useLocalStorage<string[]>('inventory', []);
   const [equippedItems, setEquippedItems] = useLocalStorage<EquippedItems>('equippedItems', {
@@ -126,13 +133,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [isSystemRunning]);
 
-  const isPeliDirty = useMemo(() => Date.now() - lastShowerTime > 3 * 60 * 60 * 1000, [lastShowerTime]);
-  const isPeliHungry = useMemo(() => Date.now() - lastFedTime > 30 * 60 * 1000, [lastFedTime]);
+  const isPeliDirty = useMemo(() => currentTime - lastShowerTime > 3 * 60 * 60 * 1000, [lastShowerTime, currentTime]);
   const hungerLevel = useMemo(() => {
     const window = 30 * 60 * 1000;
-    const elapsed = Date.now() - lastFedTime;
+    const elapsed = currentTime - lastFedTime;
     return Math.max(0, Math.min(100, 100 - (elapsed / window) * 100));
-  }, [lastFedTime]);
+  }, [lastFedTime, currentTime]);
+  const isPeliHungry = useMemo(() => hungerLevel < 30, [hungerLevel]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -149,12 +156,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const emotions: Emotion[] = ['Happy', 'Sad', 'Angry', 'Shocked', 'Neutral', 'Disgust'];
       const randomEmotion = emotions[Math.floor(Math.random() * emotions.length)];
       
-      // Stay on the same emotion for a LONG time to test the "1 min ago" logic
-      // 95% chance to stay on the same emotion
-      if (lastEmotionRef.current && Math.random() < 0.95) {
-        return;
-      }
-
+      // Only update if it's a different emotion to test the "last change" logic
       if (randomEmotion !== lastEmotionRef.current) {
         setAzureEmotion(randomEmotion);
         setLastUpdate(Date.now());
@@ -169,7 +171,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
       
       setCurrentConfidence(0.7 + Math.random() * 0.25);
-    }, 20000); // Check every 20 seconds
+    }, 4000);
 
     return () => clearInterval(interval);
   }, [isDemoMode, isSystemRunning, setEmotionHistory]);
@@ -205,13 +207,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // Only update lastUpdate if the emotion has actually changed
             if (matchedEmotion !== lastEmotionRef.current) {
               setAzureEmotion(matchedEmotion);
-              
-              // Force numeric conversion and validate timestamp sanity (must be after year 2001)
-              const rawTs = data.last_updated || data.timestamp || Date.now();
-              const numericTs = Number(rawTs);
-              const validTs = (numericTs > 1000000000) ? numericTs : Date.now();
-              
-              setLastUpdate(validTs);
+              setLastUpdate(data.last_updated ?? data.timestamp ?? Date.now());
               lastEmotionRef.current = matchedEmotion;
             }
             
@@ -253,18 +249,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const toggleSystemState = useCallback(async (state: 'start' | 'stop') => {
     if (isDemoMode) {
       setIsSystemRunning(state === 'start');
-      if (state === 'start') {
-        setLastUpdate(Date.now());
-        lastEmotionRef.current = null; // Reset to allow first detection to set its own time if needed
-      }
       return;
     }
     try {
       const systemRef = ref(db, 'live_monitoring/current');
-      if (state === 'start') {
-        setLastUpdate(Date.now());
-        lastEmotionRef.current = null;
-      }
       await update(systemRef, { 
         systemStatus: state === 'start' ? 'active' : 'idle',
         last_request: Date.now()
@@ -307,6 +295,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   }, [drachma, inventory, setDrachma, setInventory]);
 
   const consumeItem = useCallback((itemId: string) => {
+    const item = SHOP_ITEMS.find(i => i.id === itemId);
+    
     setInventory(inv => {
       const idx = inv.indexOf(itemId);
       if (idx === -1) return inv;
@@ -314,7 +304,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       copy.splice(idx, 1);
       return copy;
     });
-  }, [setInventory]);
+
+    if (item?.category === 'food' && item.hungerValue) {
+      const window = 30 * 60 * 1000;
+      const hungerBoostMs = (item.hungerValue / 100) * window;
+      setLastFedTime(prev => {
+        // If Peli is starving (hungerLevel is 0), start the boost from the 0% threshold
+        const baseTime = Math.max(prev, Date.now() - window);
+        const newTime = baseTime + hungerBoostMs;
+        return Math.min(Date.now(), newTime);
+      });
+    }
+  }, [setInventory, setLastFedTime]);
 
   const equipItem = useCallback((category: keyof EquippedItems, itemId: string | null) => {
     setEquippedItems(prev => ({ ...prev, [category]: itemId }));

@@ -16,7 +16,34 @@ const getSafeApiKey = () => {
 };
 
 // --- AUDIO UTILITIES ---
-// (Removed Gemini TTS utilities)
+function decodeBase64ToUint8(base64: string) {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function decodePCM(
+  data: Uint8Array,
+  ctx: AudioContext,
+  sampleRate: number = 24000,
+  numChannels: number = 1,
+): Promise<AudioBuffer> {
+  const dataInt16 = new Int16Array(data.buffer);
+  const frameCount = dataInt16.length / numChannels;
+  const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
+
+  for (let channel = 0; channel < numChannels; channel++) {
+    const channelData = buffer.getChannelData(channel);
+    for (let i = 0; i < frameCount; i++) {
+      channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
+    }
+  }
+  return buffer;
+}
 
 // --- Peli Character Component ---
 interface PeliProps {
@@ -939,62 +966,103 @@ const BreathingMode: React.FC<{ onComplete: () => void }> = ({ onComplete }) => 
 };
 
 // --- STORY MODE ---
+const MAX_VOICEOVERS_PER_DAY = 10;
 const STORIES = [
   { id: 1, title: "Peli's Colorful Day", icon: "🌈", scenes: [{ text: "Hi there! I am Peli. Today is a very colorful day.", emotion: "Happy" }, { text: "I walked outside and saw a big gray cloud. Oh no!", emotion: "Sad" }, { text: "Suddenly, the sun came out! I was so surprised!", emotion: "Surprised" }, { text: "Then I saw a rainbow. It made me feel calm and peaceful.", emotion: "Relaxed" }, { text: "Now I feel ready for a great day. Thanks for listening!", emotion: "Love" }] },
   { id: 2, title: "The Brave Little Star", icon: "⭐", scenes: [{ text: "Once there was a little star who was afraid of the dark.", emotion: "Fear" }, { text: "He tried to hide behind a cloud, feeling very small.", emotion: "Sad" }, { text: "But the moon said, 'You have a light inside you!'", emotion: "Neutral" }, { text: "The little star took a deep breath and sparkled.", emotion: "Surprised" }, { text: "He shone brighter than ever before! He felt so proud.", emotion: "Neutral" }] }
 ];
 
 const StoryMode: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
-    const { userName } = useAppContext();
+    const { currentEmotion, userName, companionName } = useAppContext();
     const [storyList, setStoryList] = useState(STORIES);
     const [selectedStoryIndex, setSelectedStoryIndex] = useState<number | null>(null);
     const [sceneIndex, setSceneIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
+    const [isNarrating, setIsNarrating] = useState(false);
+    const [hasStarted, setHasStarted] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [isPickingTheme, setIsPickingTheme] = useState(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    const synth = window.speechSynthesis;
+    const [quotaData, setQuotaData] = useState(() => {
+        const saved = localStorage.getItem('story_quota');
+        const today = new Date().toLocaleDateString();
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed.date === today) return parsed;
+        }
+        return { date: today, count: 0 };
+    });
+
+    useEffect(() => { localStorage.setItem('story_quota', JSON.stringify(quotaData)); }, [quotaData]);
+    
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+    const isCancelledRef = useRef(false);
+
+    const initAudio = () => {
+        if (!audioContextRef.current) { audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 }); }
+        if (audioContextRef.current.state === 'suspended') { audioContextRef.current.resume(); }
+    };
 
     const stopPlayback = useCallback(() => {
-        synth.cancel();
-        setIsPlaying(false);
-    }, [synth]);
+        isCancelledRef.current = true;
+        if (sourceNodeRef.current) { try { sourceNodeRef.current.stop(); } catch(e) {} sourceNodeRef.current = null; }
+        setIsPlaying(false); setIsNarrating(false);
+    }, []);
 
     useEffect(() => {
         return () => {
             stopPlayback();
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+            }
         };
     }, [stopPlayback]);
 
-    const speakScene = (text: string, onEnd: () => void) => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.8; // Slightly slower for clarity
-        utterance.pitch = 1.2; // A bit more friendly/child-like
-        utterance.onend = onEnd;
-        utterance.onerror = (e) => {
-            console.error("Speech error", e);
-            onEnd();
-        };
-        synth.speak(utterance);
-    };
-
-    const playNextScene = (index: number) => {
-        if (selectedStoryIndex === null) return;
-        const currentStory = storyList[selectedStoryIndex];
+    const speakSceneGemini = async (index: number) => {
+        if (selectedStoryIndex === null || isCancelledRef.current) return;
+        if (quotaData.count >= MAX_VOICEOVERS_PER_DAY) { setIsNarrating(false); return; }
         
-        if (index >= currentStory.scenes.length) {
-            onComplete();
-            return;
+        const key = getSafeApiKey();
+        if (!key) {
+           setErrorMsg("API Key Missing");
+           setIsNarrating(false);
+           return;
         }
 
-        setSceneIndex(index);
-        speakScene(currentStory.scenes[index].text, () => {
-            if (!isPaused) {
-                setTimeout(() => playNextScene(index + 1), 1000);
+        const currentStory = storyList[selectedStoryIndex];
+        const scene = currentStory.scenes[index];
+        setIsNarrating(true);
+        try {
+            const ai = new GoogleGenAI({ apiKey: key });
+            const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash-preview-tts",
+                contents: [{ parts: [{ text: scene.text }] }],
+                config: { responseModalities: [Modality.AUDIO], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } } },
+            });
+            if (isCancelledRef.current) return;
+            const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+            if (base64Audio) {
+                initAudio();
+                const ctx = audioContextRef.current!;
+                const audioData = decodeBase64ToUint8(base64Audio);
+                const buffer = await decodePCM(audioData, ctx, 24000, 1);
+                const source = ctx.createBufferSource(); source.buffer = buffer; source.connect(ctx.destination); sourceNodeRef.current = source;
+                source.onended = () => {
+                    setIsNarrating(false); if (isCancelledRef.current) return;
+                    setTimeout(() => { if (isCancelledRef.current) return; if (index < currentStory.scenes.length - 1) { setSceneIndex(index + 1); speakSceneGemini(index + 1); } else { onComplete(); } }, 1200);
+                };
+                source.start(); if (index === 0) { setQuotaData(prev => ({ ...prev, count: prev.count + 1 })); }
             }
-        });
+        } catch (error) { 
+           setIsNarrating(false); 
+           setTimeout(() => { 
+             if (index < currentStory.scenes.length - 1) { setSceneIndex(index + 1); speakSceneGemini(index + 1); } else { onComplete(); } 
+           }, 3000); 
+        }
     };
 
     const handleGenerateStory = async (selectedTheme: string) => {
@@ -1014,35 +1082,16 @@ const StoryMode: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
             });
             const storyData = JSON.parse(result.text);
             const newStory = { id: Date.now(), title: storyData.title, icon: "✨", scenes: storyData.scenes };
-            setStoryList(prev => [newStory, ...prev]); setSelectedStoryIndex(0); setSceneIndex(0);
+            setStoryList(prev => [newStory, ...prev]); setSelectedStoryIndex(0); setHasStarted(false); setSceneIndex(0);
         } catch (e) { 
            console.error("Generation failed", e); 
            setErrorMsg("Generation Error");
         } finally { setIsGenerating(false); }
     };
 
-    const handleStart = () => { 
-        setIsPlaying(true); 
-        setIsPaused(false); 
-        playNextScene(0);
-    };
-
-    const handleTogglePause = () => { 
-        if (isPaused) { 
-            setIsPaused(false); 
-            playNextScene(sceneIndex);
-        } else { 
-            setIsPaused(true); 
-            stopPlayback(); 
-        } 
-    };
-
-    const handleExitToLibrary = () => { 
-        stopPlayback(); 
-        setSelectedStoryIndex(null); 
-        setIsPlaying(false); 
-        setIsPickingTheme(false); 
-    };
+    const handleStart = () => { initAudio(); isCancelledRef.current = false; setHasStarted(true); setIsPlaying(true); setIsPaused(false); if (quotaData.count < MAX_VOICEOVERS_PER_DAY) { speakSceneGemini(0); } else { setIsPlaying(false); } };
+    const handleTogglePause = () => { if (isPaused) { setIsPaused(false); isCancelledRef.current = false; if (quotaData.count < MAX_VOICEOVERS_PER_DAY) speakSceneGemini(sceneIndex); } else { setIsPaused(true); stopPlayback(); isCancelledRef.current = true; } };
+    const handleExitToLibrary = () => { stopPlayback(); isCancelledRef.current = true; setSelectedStoryIndex(null); setHasStarted(false); setIsPlaying(false); setIsPickingTheme(false); };
 
     if (isPickingTheme) {
         return (
@@ -1066,6 +1115,7 @@ const StoryMode: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
     if (selectedStoryIndex === null) {
         const keyMissing = !getSafeApiKey();
+        const quotaExceeded = quotaData.count >= MAX_VOICEOVERS_PER_DAY;
         
         return (
             <div className="flex flex-col items-center w-full h-full animate-fadeIn p-4 text-white">
@@ -1079,14 +1129,14 @@ const StoryMode: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                     <div>
                         <h3 className="font-black text-xl leading-tight">Magic AI Story</h3>
                         <p className="text-sm font-bold opacity-90 italic">
-                          {keyMissing ? "Setup Required (No API Key)" : "Create a new story with AI"}
+                          {keyMissing ? "Setup Required (No API Key)" : quotaExceeded ? "Narrator sleeping 😴" : `${MAX_VOICEOVERS_PER_DAY - quotaData.count} narrations left today`}
                         </p>
                     </div>
                 </button>
                 {errorMsg && <p className="mb-4 text-rose-300 font-bold text-xs uppercase animate-pulse">⚠️ {errorMsg}</p>}
                 <div className="w-full space-y-4 overflow-y-auto pr-1 scrollbar-hide pb-10">
                     {storyList.map((story, idx) => (
-                        <button key={story.id} onClick={() => { setSelectedStoryIndex(idx); setSceneIndex(0); }} className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-md p-5 rounded-3xl flex items-center gap-5 transition-all active:scale-95 text-left border border-white/10 shadow-lg group text-white">
+                        <button key={story.id} onClick={() => { setSelectedStoryIndex(idx); setHasStarted(false); setSceneIndex(0); }} className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-md p-5 rounded-3xl flex items-center gap-5 transition-all active:scale-95 text-left border border-white/10 shadow-lg group text-white">
                             <span className="text-4xl group-hover:scale-110 transition-transform">{story.icon}</span>
                             <div className="flex-1">
                                 <h3 className="font-black text-lg leading-tight">{story.title}</h3>
@@ -1102,8 +1152,10 @@ const StoryMode: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
     const currentStory = storyList[selectedStoryIndex];
     const currentScene = currentStory.scenes[sceneIndex];
     const progress = ((sceneIndex + 1) / currentStory.scenes.length) * 100;
+    const keyAvailable = !!getSafeApiKey();
+    const quotaExceeded = quotaData.count >= MAX_VOICEOVERS_PER_DAY;
 
-    if (!isPlaying && !isPaused && sceneIndex === 0) {
+    if (!hasStarted) {
         return (
             <div className="flex flex-col items-center justify-center flex-grow text-center relative w-full h-full p-6 text-white">
                 <button onClick={() => setSelectedStoryIndex(null)} className="absolute top-4 left-4 w-12 h-12 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-all text-white border border-white/20 shadow-xl text-2xl">📚</button>
@@ -1124,7 +1176,7 @@ const StoryMode: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                 <button onClick={handleExitToLibrary} className="w-10 h-10 flex items-center justify-center bg-rose-500 hover:bg-rose-600 rounded-full transition-colors text-white shadow-lg text-xl">📚</button>
                 <div className="text-[10px] font-black bg-black/30 px-4 py-2 rounded-full border border-white/10 uppercase tracking-widest">Scene {sceneIndex + 1} of {currentStory.scenes.length}</div>
             </div>
-            <div className="flex-grow flex items-center justify-center w-full max-h-[35%] my-4"><PeliCharacter emotion={currentScene.emotion} animationClass={isPlaying && !isPaused ? 'animate-pulse' : ''} /></div>
+            <div className="flex-grow flex items-center justify-center w-full max-h-[35%] my-4"><PeliCharacter emotion={currentScene.emotion} animationClass={(isNarrating && !isPaused) ? 'animate-pulse' : ''} /></div>
             <div className="flex items-center w-full gap-2 mb-6">
                 <button onClick={() => { stopPlayback(); setSceneIndex(prev => Math.max(0, prev - 1)); }} disabled={sceneIndex === 0} className={`w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-2xl transition-all ${sceneIndex === 0 ? 'opacity-20' : 'hover:bg-white/20 active:scale-90'}`}>⬅️</button>
                 <div className="flex-1 bg-white/20 backdrop-blur-lg p-6 rounded-[40px] shadow-2xl border-2 border-white/20 flex flex-col justify-center min-h-[160px]">
@@ -1133,9 +1185,10 @@ const StoryMode: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                 <button onClick={() => { stopPlayback(); setSceneIndex(prev => Math.min(currentStory.scenes.length - 1, prev + 1)); }} disabled={sceneIndex === currentStory.scenes.length - 1} className={`w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-2xl transition-all ${sceneIndex === currentStory.scenes.length - 1 ? 'opacity-20' : 'hover:bg-white/20 active:scale-90'}`}>➡️</button>
             </div>
             <div className="bg-white/10 p-6 rounded-[3rem] backdrop-blur-xl border border-white/10 flex items-center gap-10 shadow-2xl mb-6">
-                <button onClick={handleTogglePause} className="w-20 h-20 bg-white text-indigo-600 rounded-full flex items-center justify-center text-4xl shadow-2xl transform active:scale-90 transition-all">{isPaused ? '▶️' : '⏸️'}</button>
+                <button onClick={handleTogglePause} disabled={!keyAvailable || (quotaExceeded && !isPlaying)} className={`w-20 h-20 bg-white text-indigo-600 rounded-full flex items-center justify-center text-4xl shadow-2xl transform active:scale-90 transition-all ${(!keyAvailable || (quotaExceeded && !isPlaying)) ? 'opacity-50 grayscale' : ''}`}>{isPaused ? '▶️' : '⏸️'}</button>
                 <button onClick={handleExitToLibrary} className="w-16 h-16 bg-rose-500 text-white rounded-full flex items-center justify-center text-3xl shadow-xl transform active:scale-90 transition-all">⏹️</button>
             </div>
+            {!keyAvailable && <p className="text-[10px] font-bold uppercase opacity-60">AI Narrator Unavailable (Offline)</p>}
         </div>
     );
 };
@@ -1172,14 +1225,16 @@ const FeedingTime: React.FC<{ onComplete: () => void; onOpenShop?: () => void }>
         };
     }, []);
 
-    useEffect(() => { if(mode === 'eating') { setLastFedTime(Date.now()); setTimeout(() => onComplete(), 2500); } }, [mode, onComplete, setLastFedTime]);
+    const [showBoost, setShowBoost] = useState(false);
+
+    useEffect(() => { if(mode === 'eating') { setShowBoost(true); setTimeout(() => onComplete(), 2500); } }, [mode, onComplete]);
 
     return (
         <div className="flex flex-col items-center w-full h-full justify-between animate-fadeIn text-white pt-2 pb-6">
-            <div className="w-full px-2">
+            <div className="w-full px-2 relative">
               <div className="flex justify-between items-center mb-2 px-1">
                 <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Hunger Meter</span>
-                <span className="text-[10px] font-black uppercase tracking-widest">{hungerLevel > 80 ? 'Full' : hungerLevel > 40 ? 'Satisfied' : 'Starving'}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">{Math.round(hungerLevel)}% - {hungerLevel > 80 ? 'Full' : hungerLevel > 40 ? 'Satisfied' : 'Starving'}</span>
               </div>
               <div className="w-full h-4 bg-black/20 rounded-full border border-white/10 overflow-hidden p-0.5">
                   <div 
@@ -1187,6 +1242,11 @@ const FeedingTime: React.FC<{ onComplete: () => void; onOpenShop?: () => void }>
                     style={{ width: `${hungerLevel}%` }}
                   />
               </div>
+              {showBoost && (
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-emerald-400 font-black text-xs animate-bounce">
+                  HUNGER BOOSTED! ✨
+                </div>
+              )}
             </div>
 
             {mode === 'menu' && (
@@ -1208,10 +1268,14 @@ const FeedingTime: React.FC<{ onComplete: () => void; onOpenShop?: () => void }>
                 ) : (
                     <div className="grid grid-cols-2 gap-3 w-full px-2 max-h-[35vh] overflow-y-auto scrollbar-hide">
                         {ownedFoods.map(f => (
-                            <button key={f.id} onClick={() => { consumeItem(f.id); if(f.id === 'water' || f.id === 'juice') setMode('pouring'); else setMode('eating'); }} className="bg-white/10 p-3 rounded-2xl flex flex-col items-center border-2 border-transparent hover:border-white/30 transition-all text-white backdrop-blur-sm">
+                            <button key={f.id} onClick={() => { consumeItem(f.id); if(f.id === 'water' || f.id === 'juice') setMode('pouring'); else setMode('eating'); }} className="bg-white/10 p-3 rounded-2xl flex flex-col items-center border-2 border-transparent hover:border-white/30 transition-all text-white backdrop-blur-sm relative group">
+                                <span className="absolute top-2 right-2 text-[10px] font-bold bg-emerald-500/80 px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">+{f.hungerValue}%</span>
                                 <span className="text-3xl filter drop-shadow-sm mb-1">{f.icon}</span>
                                 <span className="font-black text-sm">{f.name}</span>
-                                <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded-full mt-1 font-bold">x{f.quantity} Owned</span>
+                                <div className="flex flex-col items-center">
+                                  <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded-full mt-1 font-bold">x{f.quantity} Owned</span>
+                                  <span className="text-[9px] opacity-60 font-bold mt-0.5">Adds {f.hungerValue}%</span>
+                                </div>
                             </button>
                         ))}
                     </div>

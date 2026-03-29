@@ -41,11 +41,11 @@ export const SHOP_ITEMS: ShopItem[] = [
     { id: 'cloth_flower', name: 'Flower Pin', category: 'clothes', price: 120, icon: '🌸' },
 
     // FOOD & DRINK
-    { id: 'apple', name: 'Apple', category: 'food', price: 10, icon: '🍎' },
-    { id: 'burger', name: 'Burger', category: 'food', price: 25, icon: '🍔' },
-    { id: 'cake', name: 'Cake', category: 'food', price: 20, icon: '🍰' },
-    { id: 'water', name: 'Water', category: 'food', price: 5, icon: '💧' }, // Using 'food' category for simplicity in Shop logic, but handled as drink in activity
-    { id: 'juice', name: 'Juice', category: 'food', price: 15, icon: '🧃' },
+    { id: 'apple', name: 'Apple', category: 'food', price: 10, icon: '🍎', hungerValue: 20 },
+    { id: 'burger', name: 'Burger', category: 'food', price: 25, icon: '🍔', hungerValue: 30 },
+    { id: 'cake', name: 'Cake', category: 'food', price: 20, icon: '🍰', hungerValue: 25 },
+    { id: 'water', name: 'Water', category: 'food', price: 5, icon: '💧', hungerValue: 10 },
+    { id: 'juice', name: 'Juice', category: 'food', price: 15, icon: '🧃', hungerValue: 15 },
 ];
 
 export const COUNTRIES = [

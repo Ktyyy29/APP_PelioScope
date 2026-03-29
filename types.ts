@@ -57,6 +57,7 @@ export interface ShopItem {
   price: number;
   icon: string; // Emoji or SVG path identifier
   description?: string;
+  hungerValue?: number;
 }
 
 export interface EquippedItems {
